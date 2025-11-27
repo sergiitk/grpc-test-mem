@@ -92,6 +92,19 @@ void read_file(const std::string& file_path) {
     // when the function exits (goes out of scope).
 }
 
+void print_mallinfo2() {
+    struct mallinfo2 mi = mallinfo2();
+    std::cout << "  Total non-mmapped bytes (arena):       " << mi.arena / 1024 / 1024 << " MB" << std::endl;
+    std::cout << "  Number of free chunks (ordblks):       " << mi.ordblks << std::endl;
+    std::cout << "  Number of fastbin blocks (smblks):     " << mi.smblks << std::endl;
+    std::cout << "  Number of mmapped regions (hblks):     " << mi.hblks << std::endl;
+
+    std::cout << "  Bytes in mmapped regions (hblkhd):     " << mi.hblkhd / 1024 / 1024 << " MB" << std::endl;
+    std::cout << "  Total allocated space (uordblks):      " << mi.uordblks / 1024 / 1024 << " MB" << std::endl;
+    std::cout << "  Total free space (fordblks):           " << mi.fordblks / 1024 / 1024 << " MB" << std::endl;
+    std::cout << "  Top-most releasable space (keepcost):  " << mi.keepcost  / 1024 / 1024 << " MB" << std::endl;
+}
+
 
 /**
  * @brief Simulates a task that involves repeated memory allocation and resource creation.
@@ -109,10 +122,9 @@ void trigger_mem(const std::string& file_path) {
     double prev_rss = 0;
 
     for (int i = 0; i < NUM_ITERATIONS; ++i) {
-        std::cout << "Iteration " << i + 1 << "/" << NUM_ITERATIONS << " BEGIN" << std::endl;
+        // std::cout << "Iteration " << i + 1 << "/" << NUM_ITERATIONS << " BEGIN" << std::endl;
 
-        // Sleep to mimic real-world processing pause
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        // std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
         // --- 1. File Read Simulation (Memory Spike) ---
         // Create a thread to run the file read function.
@@ -144,17 +156,7 @@ void trigger_mem(const std::string& file_path) {
 
         // malloc_stats();
         // mall info
-        struct mallinfo2 mi = mallinfo2();
-        std::cout << "  Total non-mmapped bytes (arena):       " << mi.arena / 1024 / 1024 << " MB" << std::endl;
-        std::cout << "  Number of free chunks (ordblks):       " << mi.ordblks << std::endl;
-        std::cout << "  Number of fastbin blocks (smblks):     " << mi.smblks << std::endl;
-        std::cout << "  Number of mmapped regions (hblks):     " << mi.hblks << std::endl;
-
-        std::cout << "  Bytes in mmapped regions (hblkhd):     " << mi.hblkhd / 1024 / 1024 << " MB" << std::endl;
-        std::cout << "  Total allocated space (uordblks):      " << mi.uordblks / 1024 / 1024 << " MB" << std::endl;
-        std::cout << "  Total free space (fordblks):           " << mi.fordblks / 1024 / 1024 << " MB" << std::endl;
-        std::cout << "  Top-most releasable space (keepcost):  " << mi.keepcost  / 1024 / 1024 << " MB" << std::endl;
-
+        // print_mallinfo2();
 
         std::cout << "Iteration " << i + 1 << "/" << NUM_ITERATIONS << ": "
                   << "Current RSS: " << std::fixed << std::setprecision(2) << current_rss << " MB | "
@@ -199,7 +201,8 @@ void create_mock_file(const std::string& file_path, size_t size) {
 int main(int argc, char* argv[]) {
     mallopt(M_CHECK_ACTION, 3);
     // 4*1024*1024*sizeof(long)
-    mallopt(M_MMAP_THRESHOLD, 64 * 1024 * 1024);
+    mallopt(M_MMAP_THRESHOLD, 0);
+    // mallopt(M_MMAP_THRESHOLD, 64 * 1024 * 1024);
 
     // C++ doesn't use the Python logging module, but we can set up formatting
     // for standard output (std::fixed and std::setprecision are for memory printing).
