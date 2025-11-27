@@ -18,9 +18,9 @@
 // Total size of the temporary file (50 MB)
 constexpr size_t ARBITRARY_FILE_SIZE = 50 * 1024 * 1024;
 // The amount of data read by read_file (31 MB)
-constexpr size_t READ_SIZE =  30 * 1024 * 1024;
+constexpr size_t READ_SIZE =  40 * 1024 * 1024;
 // Number of iterations in the main loop
-constexpr int NUM_ITERATIONS = 50;
+constexpr int NUM_ITERATIONS = 200;
 
 /**
  * @brief Helper function to return the current process Resident Set Size (RSS) in MB.
@@ -87,7 +87,7 @@ void read_file(const std::string& file_path) {
 
     file.close();
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+    // std::this_thread::sleep_for(std::chrono::milliseconds(3000));
     // The data_buffer (and its underlying memory) is automatically released
     // when the function exits (goes out of scope).
 }
@@ -112,7 +112,7 @@ void trigger_mem(const std::string& file_path) {
         std::cout << "Iteration " << i + 1 << "/" << NUM_ITERATIONS << " BEGIN" << std::endl;
 
         // Sleep to mimic real-world processing pause
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
         // --- 1. File Read Simulation (Memory Spike) ---
         // Create a thread to run the file read function.
@@ -143,6 +143,18 @@ void trigger_mem(const std::string& file_path) {
         prev_rss = current_rss;
 
         malloc_stats();
+        // mall info
+        struct mallinfo2 mi = mallinfo2();
+        std::cout << "  Total non-mmapped bytes (arena):       " << mi.arena / 1024 / 1024 << " MB" << std::endl;
+        std::cout << "  Number of free chunks (ordblks):       " << mi.ordblks << std::endl;
+        std::cout << "  Number of fastbin blocks (smblks):     " << mi.smblks << std::endl;
+        std::cout << "  Number of mmapped regions (hblks):     " << mi.hblks << std::endl;
+
+        std::cout << "  Bytes in mmapped regions (hblkhd):     " << mi.hblkhd / 1024 / 1024 << " MB" << std::endl;
+        std::cout << "  Total allocated space (uordblks):      " << mi.uordblks / 1024 / 1024 << " MB" << std::endl;
+        std::cout << "  Total free space (fordblks):           " << mi.fordblks / 1024 / 1024 << " MB" << std::endl;
+        std::cout << "  Top-most releasable space (keepcost):  " << mi.keepcost  / 1024 / 1024 << " MB" << std::endl;
+
 
         std::cout << "Iteration " << i + 1 << "/" << NUM_ITERATIONS << ": "
                   << "Current RSS: " << std::fixed << std::setprecision(2) << current_rss << " MB | "
@@ -153,9 +165,10 @@ void trigger_mem(const std::string& file_path) {
         }
         std::cout << std::noshowpos << std::endl;
 
+
         // Sleep to mimic real-world processing pause
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-        std::cout << "Iteration " << i + 1 << "/" << NUM_ITERATIONS << " END" << std::endl;
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        // std::cout << "Iteration " << i + 1 << "/" << NUM_ITERATIONS << " END" << std::endl;
     }
 }
 
@@ -200,19 +213,18 @@ int main(int argc, char* argv[]) {
     // --- Run the Memory Trigger Simulation ---
     trigger_mem(mock_file_path);
 
-    std::cout << std::endl << "..." << std::endl;
+    // std::cout << std::endl << "..." << std::endl;
+    // for (int i = 0; i < 60; ++i) {
+    //     double current_rss = get_current_rss_mb();
 
-    for (int i = 0; i < 60; ++i) {
-        double current_rss = get_current_rss_mb();
+    //     std::cout << "Current RSS: " << std::fixed << std::setprecision(2) << current_rss << " MB"
+    //               << std::endl;
 
-        std::cout << "Current RSS: " << std::fixed << std::setprecision(2) << current_rss << " MB"
-                  << std::endl;
+    //     malloc_trim(0);
 
-        malloc_trim(0);
-
-        // Sleep to mimic real-world processing pause
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
-    }
+    //     // Sleep to mimic real-world processing pause
+    //     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    // }
 
     // Clean up the mock file after the test
     if (std::remove(mock_file_path.c_str()) != 0) {
