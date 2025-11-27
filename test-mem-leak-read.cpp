@@ -18,9 +18,9 @@
 // Total size of the temporary file (50 MB)
 constexpr size_t ARBITRARY_FILE_SIZE = 50 * 1024 * 1024;
 // The amount of data read by read_file (31 MB)
-constexpr size_t READ_SIZE =  40 * 1024 * 1024;
+constexpr size_t READ_SIZE =  30 * 1024 * 1024;
 // Number of iterations in the main loop
-constexpr int NUM_ITERATIONS = 200;
+constexpr int NUM_ITERATIONS = 50;
 
 /**
  * @brief Helper function to return the current process Resident Set Size (RSS) in MB.
@@ -142,7 +142,7 @@ void trigger_mem(const std::string& file_path) {
         double diff_from_last = current_rss - prev_rss;
         prev_rss = current_rss;
 
-        malloc_stats();
+        // malloc_stats();
         // mall info
         struct mallinfo2 mi = mallinfo2();
         std::cout << "  Total non-mmapped bytes (arena):       " << mi.arena / 1024 / 1024 << " MB" << std::endl;
@@ -197,6 +197,10 @@ void create_mock_file(const std::string& file_path, size_t size) {
 
 // $ pidstat -t --human -r 1 -e ./bazel-bin/test-mem-leak-read
 int main(int argc, char* argv[]) {
+    mallopt(M_CHECK_ACTION, 3);
+    // 4*1024*1024*sizeof(long)
+    mallopt(M_MMAP_THRESHOLD, 64 * 1024 * 1024);
+
     // C++ doesn't use the Python logging module, but we can set up formatting
     // for standard output (std::fixed and std::setprecision are for memory printing).
     std::cout << std::fixed << std::setprecision(2);
