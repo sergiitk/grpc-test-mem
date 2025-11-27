@@ -1,3 +1,4 @@
+#include <malloc.h>
 #include <iostream>
 #include <fstream>
 #include <sstream>
@@ -86,6 +87,7 @@ void read_file(const std::string& file_path) {
 
     file.close();
 
+    std::this_thread::sleep_for(std::chrono::milliseconds(3000));
     // The data_buffer (and its underlying memory) is automatically released
     // when the function exits (goes out of scope).
 }
@@ -100,13 +102,28 @@ void trigger_mem(const std::string& file_path) {
     std::cout << "PID: " << getpid() << std::endl;
     std::cout << "Initial RSS: " << initial_rss << " MB" << std::endl;
     std::cout << "---------------------------------------------------------" << std::endl;
+    // allow to watch the proccess
+    // std::this_thread::sleep_for(std::chrono::milliseconds(3000));
+
+
     double prev_rss = 0;
 
     for (int i = 0; i < NUM_ITERATIONS; ++i) {
+        std::cout << "Iteration " << i + 1 << "/" << NUM_ITERATIONS << " BEGIN" << std::endl;
+
+        // Sleep to mimic real-world processing pause
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
         // --- 1. File Read Simulation (Memory Spike) ---
         // Create a thread to run the file read function.
         std::thread t(read_file, file_path);
         // read_file(file_path);
+
+        pthread_t native_handle = t.native_handle();
+
+        std::string threadname_str = "MyThread-" + std::to_string(i + 1);
+        // pthread_setname_np expects a const char*
+        pthread_setname_np(native_handle, threadname_str.c_str());
 
         // Wait for the thread to finish. This ensures the memory allocated
         // inside 'read_file' is released before the next iteration (unless a leak occurs).
@@ -125,20 +142,20 @@ void trigger_mem(const std::string& file_path) {
         double diff_from_last = current_rss - prev_rss;
         prev_rss = current_rss;
 
-        std::cout << "Iteration " << std::noshowpos << i + 1 << "/" << NUM_ITERATIONS << ": "
+        malloc_stats();
+
+        std::cout << "Iteration " << i + 1 << "/" << NUM_ITERATIONS << ": "
                   << "Current RSS: " << std::fixed << std::setprecision(2) << current_rss << " MB | "
                   << "Total increase: " << std::showpos << std::fixed << std::setprecision(2) << diff_from_start << " MB";
 
         if (diff_from_last != 0) {
-            std::cout << " | "
-                << "Delta: " << std::showpos << std::fixed << std::setprecision(2) << diff_from_last << " MB"
-                << std::endl;
-        } else {
-            std::cout << std::endl;
+            std::cout << " | Delta: " << std::showpos << std::fixed << std::setprecision(2) << diff_from_last << " MB";
         }
+        std::cout << std::noshowpos << std::endl;
 
         // Sleep to mimic real-world processing pause
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+        std::cout << "Iteration " << i + 1 << "/" << NUM_ITERATIONS << " END" << std::endl;
     }
 }
 
@@ -165,6 +182,7 @@ void create_mock_file(const std::string& file_path, size_t size) {
     std::cout << "Mock file created at: " << file_path << std::endl;
 }
 
+// $ pidstat -t --human -r 1 -e ./bazel-bin/test-mem-leak-read
 int main(int argc, char* argv[]) {
     // C++ doesn't use the Python logging module, but we can set up formatting
     // for standard output (std::fixed and std::setprecision are for memory printing).
@@ -178,9 +196,23 @@ int main(int argc, char* argv[]) {
     // If you comment this out, ensure the file '/tmp/tmp_mem_test_file' exists
     // and is at least 31 MB large, or replace the path with an existing file.
     create_mock_file(mock_file_path, ARBITRARY_FILE_SIZE);
-    
+
     // --- Run the Memory Trigger Simulation ---
     trigger_mem(mock_file_path);
+
+    std::cout << std::endl << "..." << std::endl;
+
+    for (int i = 0; i < 60; ++i) {
+        double current_rss = get_current_rss_mb();
+
+        std::cout << "Current RSS: " << std::fixed << std::setprecision(2) << current_rss << " MB"
+                  << std::endl;
+
+        malloc_trim(0);
+
+        // Sleep to mimic real-world processing pause
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    }
 
     // Clean up the mock file after the test
     if (std::remove(mock_file_path.c_str()) != 0) {
